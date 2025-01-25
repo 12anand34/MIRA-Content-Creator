@@ -91,10 +91,47 @@ The processed data (sentiment label, sentiment score, and summary) from the ‘a
 - Enhancing the accuracy of sentiment analysis with advanced models.
 - Providing customization options for generated content.
 
+
+## Tech Stack
+
+- **Frontend**: HTML, CSS
+- **Backend**: Python, Flask
+- **AI/ML**: 
+  - MIRA SDK
+  - Hugging Face Transformers
+  - Sentiment Analysis Models[Distilbert]
+  - Summarization Models[BART]
+- **APIs**:
+  - Reddit API
+  - MIRA API
+
+## Setup
+
+1. Clone the repository:
+```bash
+git clone [repository-url]
+cd MIRA.app
+```
+
+2. Install dependencies:
+```bash
+pip install -r requirements.txt
+```
+
+3. Set up environment variables:
+```bash
+MIRA_API_KEY=your_api_key
+```
+
+4. Run the application:
+```bash
+python app.py
+```
+
+
 ---
 
 ## Contributors
-[Add names and roles of contributors]
+Anand Bansal, Arnav Saini
 
-## License
-[Specify license information]
+
