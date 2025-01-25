@@ -109,7 +109,7 @@ The processed data (sentiment label, sentiment score, and summary) from the ‘a
 
 1. Clone the repository:
 ```bash
-git clone [repository-url]
+git clone https://github.com/12anand34/MIRA-Content-Creator.git
 cd MIRA.app
 ```
 
