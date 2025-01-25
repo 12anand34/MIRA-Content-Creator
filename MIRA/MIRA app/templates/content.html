@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Content Generation - Viral Trends</title>
+    <link rel="stylesheet" href="../static/styles.css">
+    <link href="https://unpkg.com/lucide-static/font/lucide.css" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+    <header class="header">
+        <div class="header-content">
+            <i class="lucide lucide-pen-tool"></i>
+            <h1>Content Generation</h1>
+            <p class="subtitle">Generate content from trending topics</p>
+        </div>
+    </header>
+
+    <main>
+        <div class="selected-post">
+            <h2>Selected Topic</h2>
+            <div id="post-details"></div>
+        </div>
+
+        <div id="a0-analysis" class="analysis-section">
+            <h2><i class="lucide lucide-brain"></i> AI Analysis</h2>
+            <div class="loader-container">
+                <div class="loader"></div>
+                <p>Analyzing content... This may take a few moments.</p>
+            </div>
+        </div>
+
+        <div id="content-options" class="content-options" style="display: none;">
+            <h2><i class="lucide lucide-layers"></i> Generated Content</h2>
+            <div class="content-tabs">
+                <button class="tab-btn active" data-type="blog">
+                    <i class="lucide lucide-book"></i> Blog
+                </button>
+                <button class="tab-btn" data-type="reel">
+                    <i class="lucide lucide-video"></i> Reel
+                </button>
+                <button class="tab-btn" data-type="tweet">
+                    <i class="lucide lucide-twitter"></i> Tweet
+                </button>
+            </div>
+            <div id="generated-content" class="generated-content"></div>
+        </div>
+    </main>
+
+    <a href="/" class="back-btn">
+        <i class="lucide lucide-arrow-left"></i>
+        Back to Trending
+    </a>
+
+    <script>
+        lucide.createIcons();
+        
+        // Get post data from URL parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const postData = {
+            summary: urlParams.get('summary'),
+            sentiment_score: urlParams.get('sentiment_score'),
+            sentiment_label: urlParams.get('sentiment_label'),
+            title: urlParams.get('title')
+        };
+
+        // Display post details
+        document.getElementById('post-details').innerHTML = `
+            <h3>${postData.title}</h3>
+            <p>${postData.summary}</p>
+        `;
+
+        // First run a0 analysis
+        async function runA0Analysis() {
+            const analysisDiv = document.getElementById('a0-analysis');
+            try {
+                analysisDiv.innerHTML = `
+                    <h2><i class="lucide lucide-brain"></i> AI Analysis</h2>
+                    <div class="loader-container">
+                        <div class="loader"></div>
+                        <p>Analyzing content... This may take a few moments.</p>
+                    </div>
+                `;
+
+                const response = await fetch('/analyze_with_a0', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(postData)
+                });
+
+                const result = await response.json();
+                
+                if (result.error || !response.ok) {
+                    throw new Error(result.message || result.error || 'Failed to analyze content');
+                }
+
+                // Show all generated content
+                analysisDiv.innerHTML = `
+                    <h2><i class="lucide lucide-brain"></i> AI Analysis Results</h2>
+                    <div class="analysis-result">
+                        <div class="content-section">
+                            <h3><i class="lucide lucide-book"></i> Blog Content</h3>
+                            <pre>${result.content_summary || 'No content generated'}</pre>
+                        </div>
+                        
+                        <div class="content-section">
+                            <h3><i class="lucide lucide-video"></i> Reel Script</h3>
+                            <pre>${result.reel_script || 'No content generated'}</pre>
+                        </div>
+                        
+                        <div class="content-section">
+                            <h3><i class="lucide lucide-twitter"></i> Tweet</h3>
+                            <pre>${result.tweet_script || 'No content generated'}</pre>
+                        </div>
+                    </div>
+                `;
+                
+                // Hide the content options since we're showing everything at once
+                document.getElementById('content-options').style.display = 'none';
+                
+            } catch (error) {
+                console.error('Analysis error:', error);
+                let errorMessage = error.message;
+                let errorDetails = '';
+                
+                // Try to extract more details if available
+                if (error.response) {
+                    try {
+                        const errorData = await error.response.json();
+                        errorDetails = errorData.details || errorData.error || '';
+                    } catch (e) {
+                        console.error('Error parsing error response:', e);
+                    }
+                }
+                
+                analysisDiv.innerHTML = `
+                    <div class="error-message">
+                        <i class="lucide lucide-alert-circle"></i>
+                        <h3>Error</h3>
+                        <p>${errorMessage}</p>
+                        ${errorDetails ? `<pre class="error-details">${errorDetails}</pre>` : ''}
+                        <button onclick="retryAnalysis()" class="retry-btn">
+                            <i class="lucide lucide-refresh-cw"></i>
+                            Try Again
+                        </button>
+                    </div>
+                `;
+            }
+        }
+
+        // Add retry function
+        function retryAnalysis() {
+            runA0Analysis();
+        }
+
+        // Run a0 analysis on page load
+        runA0Analysis();
+
+        // Handle tab clicks
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                if (!window.a0Result) return;
+
+                const contentType = btn.dataset.type;
+                const generatedContent = document.getElementById('generated-content');
+
+                // Update active tab
+                document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                
+                try {
+                    btn.disabled = true;
+                    generatedContent.innerHTML = '<div class="loader-container"><div class="loader"></div><p>Generating content...</p></div>';
+
+                    const response = await fetch('/generate_content', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            content_type: contentType,
+                            a0_result: window.a0Result
+                        })
+                    });
+
+                    const result = await response.json();
+                    
+                    if (result.error) throw new Error(result.error);
+
+                    generatedContent.innerHTML = `
+                        <div class="generated-result">
+                            <pre>${result.content}</pre>
+                        </div>
+                    `;
+                } catch (error) {
+                    generatedContent.innerHTML = `
+                        <div class="error">
+                            <i class="lucide lucide-alert-circle"></i>
+                            Error: ${error.message}
+                        </div>
+                    `;
+                } finally {
+                    btn.disabled = false;
+                }
+            });
+        });
+    </script>
+</body>
+</html> 

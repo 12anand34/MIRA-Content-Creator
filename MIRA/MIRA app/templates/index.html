@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Viral Trends Content Maker</title>
+    <link rel="stylesheet" href="../static/styles.css">
+    <link href="https://unpkg.com/lucide-static/font/lucide.css" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+    <header class="header">
+        <div class="header-content">
+            <i class="lucide lucide-trending-up"></i>
+            <h1>Viral Trends Content Maker</h1>
+            <p class="subtitle">AI-powered analysis of the internet's most trending discussions</p>
+        </div>
+    </header>
+
+    <main>
+        <button id="trending-btn" class="analyze-btn">
+            <i class="lucide lucide-trending-up"></i>
+            <span>Analyze Trending Content</span>
+        </button>
+
+        <div id="results">
+            <h2><i class="lucide lucide-list"></i> Trending Analysis</h2>
+            <div id="trending-results" class="trending-grid"></div>
+        </div>
+
+        <div id="content-generation" class="content-generation" style="display: none;">
+            <h2><i class="lucide lucide-pen-tool"></i> Content Generation</h2>
+            <div class="generation-options">
+                <button class="generate-btn" data-type="blog">
+                    <i class="lucide lucide-book"></i>
+                    Generate Blog
+                </button>
+                <button class="generate-btn" data-type="reel">
+                    <i class="lucide lucide-video"></i>
+                    Generate Reel Script
+                </button>
+                <button class="generate-btn" data-type="tweet">
+                    <i class="lucide lucide-twitter"></i>
+                    Generate Tweet
+                </button>
+            </div>
+            <div id="generated-content" class="generated-content"></div>
+        </div>
+    </main>
+
+    <footer>
+        <p>Powered by Reddit & AI Analysis</p>
+    </footer>
+</body>
+<script>
+    // Initialize Lucide icons
+    lucide.createIcons();
+
+    const trendingBtn = document.getElementById('trending-btn');
+    const resultsDiv = document.getElementById('trending-results');
+    let isProcessing = false;
+
+    trendingBtn.onclick = async () => {
+        if (isProcessing) return;
+        isProcessing = true;
+        
+        try {
+            trendingBtn.disabled = true;
+            trendingBtn.innerHTML = '<i class="lucide lucide-loader"></i> Analyzing...';
+            resultsDiv.innerHTML = '<div class="loading">Analyzing trending content...<div class="loader"></div></div>';
+
+            const response = await fetch('/get_trending', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            });
+
+            const result = await response.json();
+            
+            if (result.error) {
+                throw new Error(result.error);
+            }
+
+            // Store the analyzed posts globally
+            window.lastAnalyzedPosts = result.trending_posts;
+
+            let html = '';
+            result.trending_posts.forEach((post, index) => {
+                const sentimentColor = getSentimentColor(post.sentiment.label);
+                html += `
+                    <div class="trending-post" data-index="${index + 1}">
+                        <div class="rank-badge">#${index + 1}</div>
+                        <div class="post-content">
+                            <h3>${post.title}</h3>
+                            <div class="post-meta">
+                                <span class="subreddit">
+                                    <i class="lucide lucide-hash"></i>
+                                    r/${post.subreddit}
+                                </span>
+                                <span class="engagement">
+                                    <span class="score">
+                                        <i class="lucide lucide-thumbs-up"></i>
+                                        ${formatNumber(post.score)}
+                                    </span>
+                                    <span class="comments">
+                                        <i class="lucide lucide-message-circle"></i>
+                                        ${formatNumber(post.comments)}
+                                    </span>
+                                </span>
+                            </div>
+                            <div class="summary">
+                                <h4>Summary</h4>
+                                <p>${post.summary}</p>
+                            </div>
+                            <div class="sentiment" style="background-color: ${sentimentColor}20">
+                                <i class="lucide lucide-activity"></i>
+                                Sentiment: ${post.sentiment.label} 
+                                <span class="confidence">${Math.round(post.sentiment.score * 100)}%</span>
+                            </div>
+                            <a href="${post.url}" target="_blank" rel="noopener noreferrer" class="view-link">
+                                View on Reddit ${post.is_video ? '<i class="lucide lucide-video"></i>' : ''}
+                                <i class="lucide lucide-external-link"></i>
+                            </a>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            resultsDiv.innerHTML = html || '<div class="no-content">No trending content found</div>';
+
+        } catch (error) {
+            console.error('Error:', error);
+            resultsDiv.innerHTML = `
+                <div class="error">
+                    <i class="lucide lucide-alert-circle"></i>
+                    Error: ${error.message}
+                </div>
+            `;
+        } finally {
+            trendingBtn.disabled = false;
+            trendingBtn.innerHTML = '<i class="lucide lucide-trending-up"></i> Analyze Trending Content';
+            isProcessing = false;
+        }
+    };
+
+    function formatNumber(num) {
+        if (num >= 1000000) return (num/1000000).toFixed(1) + 'M';
+        if (num >= 1000) return (num/1000).toFixed(1) + 'K';
+        return num;
+    }
+
+    function getSentimentColor(sentiment) {
+        const colors = {
+            'POSITIVE': '#4CAF50',
+            'NEGATIVE': '#f44336',
+            'NEUTRAL': '#9e9e9e'
+        };
+        return colors[sentiment] || colors.NEUTRAL;
+    }
+
+    // Update the click handler to remove previous selection
+    resultsDiv.addEventListener('click', async (e) => {
+        const postCard = e.target.closest('.trending-post');
+        if (!postCard) return;
+
+        const index = parseInt(postCard.dataset.index) - 1;
+        const post = window.lastAnalyzedPosts[index];
+        
+        if (!post) {
+            console.error('Post data not found');
+            return;
+        }
+        
+        // Redirect to content page with post data
+        const params = new URLSearchParams({
+            summary: post.summary,
+            sentiment_score: post.sentiment.score,
+            sentiment_label: post.sentiment.label,
+            title: post.title
+        });
+        
+        window.location.href = `/content?${params.toString()}`;
+    });
+
+    // Add click handlers for generation buttons
+    document.querySelectorAll('.generate-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            const contentType = btn.dataset.type;
+            const generatedContent = document.getElementById('generated-content');
+            
+            try {
+                btn.disabled = true;
+                btn.innerHTML = `<i class="lucide lucide-loader"></i> Generating...`;
+                generatedContent.innerHTML = '<div class="loading">Generating content...<div class="loader"></div></div>';
+
+                const response = await fetch('/generate_content', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        content_type: contentType,
+                        summary: window.selectedPost.summary,
+                        sentiment_score: window.selectedPost.sentiment_score,
+                        sentiment_label: window.selectedPost.sentiment_label
+                    })
+                });
+
+                const result = await response.json();
+                
+                if (result.error) throw new Error(result.error);
+
+                generatedContent.innerHTML = `
+                    <div class="generated-result">
+                        <h3>${contentType.charAt(0).toUpperCase() + contentType.slice(1)} Content</h3>
+                        <pre>${result.content}</pre>
+                    </div>
+                `;
+            } catch (error) {
+                console.error('Error:', error);
+                generatedContent.innerHTML = `
+                    <div class="error">
+                        <i class="lucide lucide-alert-circle"></i>
+                        Error: ${error.message}
+                    </div>
+                `;
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = `
+                    <i class="lucide lucide-${contentType === 'blog' ? 'book' : contentType === 'reel' ? 'video' : 'twitter'}"></i>
+                    Generate ${contentType.charAt(0).toUpperCase() + contentType.slice(1)}
+                `;
+            }
+        });
+    });
+</script>
+</html>

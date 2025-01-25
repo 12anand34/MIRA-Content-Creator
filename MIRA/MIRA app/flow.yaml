@@ -1,0 +1,81 @@
+# Flow specification version
+version: "0.1.0"
+
+# Flow metadata and configuration
+metadata:
+  flow_type: "compound"
+  name: "compound-workflow"
+  description: "A compound workflow for generating blog, reel, or tweet scripts based on trending topics and sentiment analysis."
+  author: "arnaviitr"
+  tags: [trending, sentiment-analysis, content-generation]
+  private: true
+
+# Primary input definitions
+inputs:
+  prime_input_1:
+    type: string
+    description: "Summary of the trending content"
+    required: true
+    example: "This is an example trending topic summary"
+  prime_input_2:
+    type: string
+    description: "Sentiment score"
+    required: true
+    example: "0.95"
+  prime_input_3:
+    type: string
+    description: "Sentiment label"
+    required: true
+    example: "POSITIVE"
+
+# Workflow definition
+workflow:
+  # Summarizer Flow stage
+  summarizer_flow:
+    type: "elemental"
+    flow_name: "arnaviitr/a0"
+    inputs:
+      "input1_summary": ${inputs.prime_input_1}
+      "input2_sentiment_score": ${inputs.prime_input_2}
+      "input3_sentiment_label": ${inputs.prime_input_3}
+
+  # Blog Generator
+  blog_generator_flow:
+    type: "elemental"
+    flow_name: "arnaviitr/blog-generator"
+    depends_on: [summarizer_flow]
+    inputs:
+      "Selected Trend": ${summarizer_flow.output}
+    
+  # Reel Generator
+  reel_generator_flow:
+    type: "elemental"
+    flow_name: "arnaviitr/reel-script-generator"
+    depends_on: [summarizer_flow]
+    inputs:
+      "Selected Trend": ${summarizer_flow.output}
+
+  # Tweet Generator
+  tweet_generator_flow:
+    type: "elemental"
+    flow_name: "vardhan0902/tweet-generator"
+    depends_on: [summarizer_flow]
+    inputs:
+      "topic": ${summarizer_flow.output}
+
+# Output configuration
+output:
+  value:
+    - ${blog_generator_flow.output}
+    - ${reel_generator_flow.output}
+    - ${tweet_generator_flow.output}
+
+# Flow documentation
+readme: |
+  This compound workflow processes trending content to generate multiple content formats.
+  
+  Flow steps:
+  1. Summarizer analyzes the input content
+  2. Blog generator creates a blog post
+  3. Reel generator creates a video script
+  4. Tweet generator creates a tweet
